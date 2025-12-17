@@ -14,6 +14,24 @@
 
 ## 快速开始
 
+### 快速体验（无需安装）
+
+使用 `uvx` 直接从 GitHub 运行，无需克隆仓库或安装：
+
+```bash
+# 直接运行（stdio 模式）
+uvx --from git+https://github.com/lyxamour/mcp lyxamour-mcp start
+
+# 指定传输协议
+uvx --from git+https://github.com/lyxamour/mcp lyxamour-mcp start --transport sse
+
+# 查看版本
+uvx --from git+https://github.com/lyxamour/mcp lyxamour-mcp version
+
+# 查看帮助
+uvx --from git+https://github.com/lyxamour/mcp lyxamour-mcp --help
+```
+
 ### 安装
 
 ```bash
