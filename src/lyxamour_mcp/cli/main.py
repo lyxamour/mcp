@@ -14,10 +14,43 @@ from lyxamour_mcp.transport.http_stream import HTTPStreamTransport
 from lyxamour_mcp.transport.sse import SSETransport
 from lyxamour_mcp.transport.stdio import StdioTransport
 from lyxamour_mcp.utils.logger import setup_logger
+from lyxamour_mcp.web.app import run_web_server
 
 app = typer.Typer(help="lyxamour-mcp - MCP 工具服务器")
 console = Console()
 logger = structlog.get_logger(__name__)
+
+
+async def _start_services(
+    server: MCPServer,
+    transport_instance,
+    config,
+) -> None:
+    """
+    启动服务（MCP 服务器和 Web 服务器）
+
+    Args:
+        server: MCP 服务器实例
+        transport_instance: 传输层实例
+        config: 配置对象
+    """
+    tasks = []
+
+    # 创建 MCP 服务器任务
+    mcp_task = asyncio.create_task(server.start(transport_instance))
+    tasks.append(mcp_task)
+
+    # 如果启用了 Web 界面，创建 Web 服务器任务
+    if config.web.enabled:
+        web_task = asyncio.create_task(run_web_server(config))
+        tasks.append(web_task)
+        console.print(f"[green]Web 管理界面:[/green] http://{config.web.host}:{config.web.port}")
+
+    # 等待所有任务完成（或被取消）
+    try:
+        await asyncio.gather(*tasks)
+    except asyncio.CancelledError:
+        logger.info("所有服务已停止")
 
 
 @app.command()
@@ -66,9 +99,9 @@ def start(
         console.print(f"[red]不支持的传输类型: {transport}[/red]")
         raise typer.Exit(1)
 
-    # 启动服务器
+    # 启动服务
     try:
-        asyncio.run(server.start(transport_instance))
+        asyncio.run(_start_services(server, transport_instance, config))
     except KeyboardInterrupt:
         console.print("\n[yellow]收到停止信号，正在关闭...[/yellow]")
     except Exception as e:
