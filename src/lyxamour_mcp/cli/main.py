@@ -3,6 +3,7 @@ CLI 主入口
 """
 
 import asyncio
+import webbrowser
 
 import structlog
 import typer
@@ -25,6 +26,7 @@ async def _start_services(
     server: MCPServer,
     transport_instance,
     config,
+    transport_type: str,
 ) -> None:
     """
     启动服务（MCP 服务器和 Web 服务器）
@@ -33,6 +35,7 @@ async def _start_services(
         server: MCP 服务器实例
         transport_instance: 传输层实例
         config: 配置对象
+        transport_type: 传输类型（stdio, sse, http_stream）
     """
     tasks = []
 
@@ -42,9 +45,27 @@ async def _start_services(
 
     # 如果启用了 Web 界面，创建 Web 服务器任务
     if config.web.enabled:
-        web_task = asyncio.create_task(run_web_server(config))
+        # stdio 模式使用随机端口并自动打开浏览器
+        use_random_port = transport_type == "stdio"
+        web_port = 0 if use_random_port else None
+
+        # 端口回调函数，用于获取实际端口并打开浏览器
+        def on_port_ready(actual_port: int) -> None:
+            url = f"http://{config.web.host}:{actual_port}"
+            console.print(f"[green]Web 管理界面:[/green] {url}")
+
+            # 仅在 stdio 模式下自动打开浏览器
+            if use_random_port:
+                try:
+                    webbrowser.open(url)
+                    logger.info("已自动打开浏览器", url=url)
+                except Exception as e:
+                    logger.warning("打开浏览器失败", error=str(e))
+
+        web_task = asyncio.create_task(
+            run_web_server(config, port=web_port, port_callback=on_port_ready)
+        )
         tasks.append(web_task)
-        console.print(f"[green]Web 管理界面:[/green] http://{config.web.host}:{config.web.port}")
 
     # 等待所有任务完成（或被取消）
     try:
@@ -101,7 +122,7 @@ def start(
 
     # 启动服务
     try:
-        asyncio.run(_start_services(server, transport_instance, config))
+        asyncio.run(_start_services(server, transport_instance, config, transport))
     except KeyboardInterrupt:
         console.print("\n[yellow]收到停止信号，正在关闭...[/yellow]")
     except Exception as e:
