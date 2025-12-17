@@ -10,6 +10,7 @@ auto-activate:
 ## 概述
 
 知识库系统提供文档存储、检索和管理功能，基于 SQLite 实现，支持：
+
 - 文档存储和元数据管理
 - 全文搜索 (FTS5)
 - 可选的向量搜索
@@ -32,7 +33,7 @@ logger = structlog.get_logger(__name__)
 
 class Document(BaseModel):
     """文档模型"""
-    
+
     id: str = Field(..., description="文档唯一标识")
     title: str = Field(..., description="文档标题")
     content: str = Field(..., description="文档内容")
@@ -49,7 +50,7 @@ class Document(BaseModel):
         default_factory=datetime.now,
         description="更新时间"
     )
-    
+
     model_config = {
         "extra": "forbid",
         "frozen": False,
@@ -58,7 +59,7 @@ class Document(BaseModel):
 
 class Chunk(BaseModel):
     """文档块模型"""
-    
+
     id: str = Field(..., description="块唯一标识")
     document_id: str = Field(..., description="所属文档ID")
     content: str = Field(..., description="块内容")
@@ -73,7 +74,7 @@ class Chunk(BaseModel):
         default_factory=dict,
         description="块元数据"
     )
-    
+
     model_config = {
         "extra": "forbid",
         "frozen": False,
@@ -82,7 +83,7 @@ class Chunk(BaseModel):
 
 class SearchResult(BaseModel):
     """搜索结果模型"""
-    
+
     document_id: str = Field(..., description="文档ID")
     chunk_id: str | None = Field(default=None, description="块ID（如果是块搜索）")
     title: str = Field(..., description="文档标题")
@@ -92,7 +93,7 @@ class SearchResult(BaseModel):
         default_factory=dict,
         description="元数据"
     )
-    
+
     model_config = {
         "extra": "forbid",
         "frozen": False,
@@ -210,53 +211,53 @@ logger = structlog.get_logger(__name__)
 
 class Database:
     """知识库数据库管理"""
-    
+
     def __init__(self, config: KnowledgeConfig) -> None:
         self.config = config
         self.db_path = Path(config.db_path).expanduser()
         self._connection: aiosqlite.Connection | None = None
-    
+
     async def initialize(self) -> None:
         """初始化数据库"""
         logger.info("初始化知识库数据库", path=str(self.db_path))
-        
+
         # 确保数据库目录存在
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # 连接数据库
         self._connection = await aiosqlite.connect(str(self.db_path))
-        
+
         # 启用外键约束
         await self._connection.execute("PRAGMA foreign_keys = ON")
-        
+
         # 执行 schema
         await self._execute_schema()
-        
+
         logger.info("知识库数据库初始化完成")
-    
+
     async def close(self) -> None:
         """关闭数据库连接"""
         if self._connection:
             await self._connection.close()
             self._connection = None
             logger.info("知识库数据库已关闭")
-    
+
     @asynccontextmanager
     async def connection(self) -> AsyncIterator[aiosqlite.Connection]:
         """获取数据库连接（上下文管理器）"""
         if self._connection is None:
             await self.initialize()
-        
+
         assert self._connection is not None
         yield self._connection
-    
+
     async def _execute_schema(self) -> None:
         """执行数据库 schema"""
         assert self._connection is not None
-        
+
         # 读取 schema 文件
         schema_path = Path(__file__).parent / "schema.sql"
-        
+
         if schema_path.exists():
             async with aiosqlite.connect(str(self.db_path)) as conn:
                 with open(schema_path, 'r', encoding='utf-8') as f:
@@ -266,11 +267,11 @@ class Database:
         else:
             # 内联 schema（如果文件不存在）
             await self._create_inline_schema()
-    
+
     async def _create_inline_schema(self) -> None:
         """创建内联 schema"""
         assert self._connection is not None
-        
+
         # 文档表
         await self._connection.execute("""
             CREATE TABLE IF NOT EXISTS documents (
@@ -283,7 +284,7 @@ class Database:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         # 文档块表
         await self._connection.execute("""
             CREATE TABLE IF NOT EXISTS chunks (
@@ -298,7 +299,7 @@ class Database:
                 FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
             )
         """)
-        
+
         # 全文搜索表
         if self.config.enable_fts:
             await self._connection.execute("""
@@ -309,7 +310,7 @@ class Database:
                     tokenize = 'unicode61'
                 )
             """)
-            
+
             await self._connection.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
                     chunk_id UNINDEXED,
@@ -318,9 +319,9 @@ class Database:
                     tokenize = 'unicode61'
                 )
             """)
-        
+
         await self._connection.commit()
-        
+
         logger.info("数据库 schema 创建完成")
 ```
 
@@ -342,13 +343,13 @@ logger = structlog.get_logger(__name__)
 
 class DocumentStorage:
     """文档存储层"""
-    
+
     def __init__(self, db: Database) -> None:
         self.db = db
-    
+
     async def create_document(self, document: Document) -> str:
         """创建文档
-        
+
         Returns:
             文档ID
         """
@@ -369,10 +370,10 @@ class DocumentStorage:
                 )
             )
             await conn.commit()
-        
+
         logger.info("文档已创建", document_id=document.id)
         return document.id
-    
+
     async def get_document(self, document_id: str) -> Document | None:
         """获取文档"""
         async with self.db.connection() as conn:
@@ -381,16 +382,16 @@ class DocumentStorage:
                 (document_id,)
             ) as cursor:
                 row = await cursor.fetchone()
-        
+
         if row is None:
             return None
-        
+
         return self._row_to_document(row)
-    
+
     async def update_document(self, document: Document) -> None:
         """更新文档"""
         document.updated_at = datetime.now()
-        
+
         async with self.db.connection() as conn:
             await conn.execute(
                 """
@@ -408,9 +409,9 @@ class DocumentStorage:
                 )
             )
             await conn.commit()
-        
+
         logger.info("文档已更新", document_id=document.id)
-    
+
     async def delete_document(self, document_id: str) -> None:
         """删除文档（级联删除块）"""
         async with self.db.connection() as conn:
@@ -419,9 +420,9 @@ class DocumentStorage:
                 (document_id,)
             )
             await conn.commit()
-        
+
         logger.info("文档已删除", document_id=document_id)
-    
+
     async def list_documents(
         self,
         limit: int = 10,
@@ -438,9 +439,9 @@ class DocumentStorage:
                 (limit, offset)
             ) as cursor:
                 rows = await cursor.fetchall()
-        
+
         return [self._row_to_document(row) for row in rows]
-    
+
     @staticmethod
     def _row_to_document(row: tuple) -> Document:
         """将数据库行转换为文档对象"""
@@ -457,10 +458,10 @@ class DocumentStorage:
 
 class ChunkStorage:
     """文档块存储层"""
-    
+
     def __init__(self, db: Database) -> None:
         self.db = db
-    
+
     async def create_chunks(self, chunks: list[Chunk]) -> None:
         """批量创建文档块"""
         async with self.db.connection() as conn:
@@ -484,9 +485,9 @@ class ChunkStorage:
                 ]
             )
             await conn.commit()
-        
+
         logger.info("文档块已创建", count=len(chunks))
-    
+
     async def get_chunks(self, document_id: str) -> list[Chunk]:
         """获取文档的所有块"""
         async with self.db.connection() as conn:
@@ -499,9 +500,9 @@ class ChunkStorage:
                 (document_id,)
             ) as cursor:
                 rows = await cursor.fetchall()
-        
+
         return [self._row_to_chunk(row) for row in rows]
-    
+
     async def delete_chunks(self, document_id: str) -> None:
         """删除文档的所有块"""
         async with self.db.connection() as conn:
@@ -510,9 +511,9 @@ class ChunkStorage:
                 (document_id,)
             )
             await conn.commit()
-        
+
         logger.info("文档块已删除", document_id=document_id)
-    
+
     @staticmethod
     def _row_to_chunk(row: tuple) -> Chunk:
         """将数据库行转换为块对象"""
@@ -526,22 +527,22 @@ class ChunkStorage:
             embedding=ChunkStorage._deserialize_embedding(row[6]),
             metadata=json.loads(row[7]) if row[7] else {}
         )
-    
+
     @staticmethod
     def _serialize_embedding(embedding: list[float] | None) -> bytes | None:
         """序列化向量嵌入"""
         if embedding is None:
             return None
-        
+
         import struct
         return struct.pack(f'{len(embedding)}f', *embedding)
-    
+
     @staticmethod
     def _deserialize_embedding(data: bytes | None) -> list[float] | None:
         """反序列化向量嵌入"""
         if data is None:
             return None
-        
+
         import struct
         count = len(data) // 4
         return list(struct.unpack(f'{count}f', data))
@@ -563,30 +564,30 @@ logger = structlog.get_logger(__name__)
 
 class DocumentChunker:
     """文档分块器
-    
+
     将长文档分割成小块，支持重叠。
     """
-    
+
     def __init__(self, config: KnowledgeConfig) -> None:
         self.chunk_size = config.chunk_size
         self.chunk_overlap = config.chunk_overlap
-    
+
     def chunk_document(
         self,
         document_id: str,
         content: str
     ) -> list[Chunk]:
         """分块文档
-        
+
         Args:
             document_id: 文档ID
             content: 文档内容
-        
+
         Returns:
             文档块列表
         """
         chunks = []
-        
+
         for i, (chunk_text, start, end) in enumerate(self._split_text(content)):
             chunk = Chunk(
                 id=str(uuid.uuid4()),
@@ -597,18 +598,18 @@ class DocumentChunker:
                 end_pos=end
             )
             chunks.append(chunk)
-        
+
         logger.info(
             "文档分块完成",
             document_id=document_id,
             chunks=len(chunks)
         )
-        
+
         return chunks
-    
+
     def _split_text(self, text: str) -> Iterator[tuple[str, int, int]]:
         """分割文本
-        
+
         Yields:
             (块文本, 起始位置, 结束位置)
         """
@@ -616,31 +617,31 @@ class DocumentChunker:
             # 文本太短，不需要分块
             yield (text, 0, len(text))
             return
-        
+
         start = 0
-        
+
         while start < len(text):
             end = min(start + self.chunk_size, len(text))
-            
+
             # 尝试在句子边界分割
             if end < len(text):
                 # 查找最近的句子结束符
                 sentence_ends = ['.', '!', '?', '\n', '。', '！', '？']
                 best_end = end
-                
+
                 for i in range(end - 1, start + self.chunk_size // 2, -1):
                     if text[i] in sentence_ends:
                         best_end = i + 1
                         break
-                
+
                 end = best_end
-            
+
             chunk_text = text[start:end]
             yield (chunk_text, start, end)
-            
+
             # 计算下一个块的起始位置（考虑重叠）
             start = end - self.chunk_overlap
-            
+
             # 确保至少前进一个字符
             if start >= end:
                 start = end
@@ -662,31 +663,31 @@ logger = structlog.get_logger(__name__)
 
 class Retriever:
     """知识检索器"""
-    
+
     def __init__(self, db: Database, config: KnowledgeConfig) -> None:
         self.db = db
         self.config = config
-    
+
     async def search_documents(
         self,
         query: str,
         limit: int = 10
     ) -> list[SearchResult]:
         """搜索文档（全文搜索）
-        
+
         Args:
             query: 搜索查询
             limit: 结果数量限制
-        
+
         Returns:
             搜索结果列表
         """
         if not self.config.enable_fts:
             logger.warning("全文搜索未启用")
             return []
-        
+
         logger.info("搜索文档", query=query, limit=limit)
-        
+
         async with self.db.connection() as conn:
             async with conn.execute(
                 """
@@ -705,7 +706,7 @@ class Retriever:
                 (query, limit)
             ) as cursor:
                 rows = await cursor.fetchall()
-        
+
         results = []
         for row in rows:
             import json
@@ -716,30 +717,30 @@ class Retriever:
                 score=-row[4],  # FTS5 rank 是负数
                 metadata=json.loads(row[3]) if row[3] else {}
             ))
-        
+
         logger.info("搜索完成", query=query, results=len(results))
         return results
-    
+
     async def search_chunks(
         self,
         query: str,
         limit: int = 10
     ) -> list[SearchResult]:
         """搜索文档块（更精细的搜索）
-        
+
         Args:
             query: 搜索查询
             limit: 结果数量限制
-        
+
         Returns:
             搜索结果列表
         """
         if not self.config.enable_fts:
             logger.warning("全文搜索未启用")
             return []
-        
+
         logger.info("搜索文档块", query=query, limit=limit)
-        
+
         async with self.db.connection() as conn:
             async with conn.execute(
                 """
@@ -760,7 +761,7 @@ class Retriever:
                 (query, limit)
             ) as cursor:
                 rows = await cursor.fetchall()
-        
+
         results = []
         for row in rows:
             import json
@@ -772,35 +773,35 @@ class Retriever:
                 score=-row[5],
                 metadata=json.loads(row[4]) if row[4] else {}
             ))
-        
+
         logger.info("搜索完成", query=query, results=len(results))
         return results
-    
+
     async def vector_search(
         self,
         embedding: list[float],
         limit: int = 10
     ) -> list[SearchResult]:
         """向量搜索（需要启用向量支持）
-        
+
         使用余弦相似度进行向量搜索。
-        
+
         Args:
             embedding: 查询向量
             limit: 结果数量限制
-        
+
         Returns:
             搜索结果列表
         """
         if not self.config.enable_vector:
             logger.warning("向量搜索未启用")
             return []
-        
+
         logger.info("向量搜索", limit=limit)
-        
+
         # TODO: 实现向量搜索
         # 需要额外的向量数据库或扩展
-        
+
         return []
 ```
 
@@ -824,10 +825,10 @@ logger = structlog.get_logger(__name__)
 
 class KnowledgeManager:
     """知识库管理器
-    
+
     提供统一的知识库操作接口。
     """
-    
+
     def __init__(self, config: KnowledgeConfig) -> None:
         self.config = config
         self.db = Database(config)
@@ -835,17 +836,17 @@ class KnowledgeManager:
         self.chunk_storage = ChunkStorage(self.db)
         self.chunker = DocumentChunker(config)
         self.retriever = Retriever(self.db, config)
-    
+
     async def initialize(self) -> None:
         """初始化知识库"""
         await self.db.initialize()
         logger.info("知识库管理器已初始化")
-    
+
     async def close(self) -> None:
         """关闭知识库"""
         await self.db.close()
         logger.info("知识库管理器已关闭")
-    
+
     async def add_document(
         self,
         title: str,
@@ -854,15 +855,15 @@ class KnowledgeManager:
         metadata: dict[str, Any] | None = None
     ) -> str:
         """添加文档
-        
+
         自动分块和索引。
-        
+
         Args:
             title: 文档标题
             content: 文档内容
             source: 文档来源
             metadata: 文档元数据
-        
+
         Returns:
             文档ID
         """
@@ -874,22 +875,22 @@ class KnowledgeManager:
             source=source,
             metadata=metadata or {}
         )
-        
+
         # 存储文档
         document_id = await self.doc_storage.create_document(document)
-        
+
         # 分块
         if self.config.auto_index:
             chunks = self.chunker.chunk_document(document_id, content)
             await self.chunk_storage.create_chunks(chunks)
-        
+
         logger.info("文档已添加", document_id=document_id)
         return document_id
-    
+
     async def get_document(self, document_id: str) -> Document | None:
         """获取文档"""
         return await self.doc_storage.get_document(document_id)
-    
+
     async def update_document(
         self,
         document_id: str,
@@ -899,13 +900,13 @@ class KnowledgeManager:
         metadata: dict[str, Any] | None = None
     ) -> None:
         """更新文档
-        
+
         如果内容变更，重新分块。
         """
         document = await self.doc_storage.get_document(document_id)
         if document is None:
             raise ValueError(f"文档不存在: {document_id}")
-        
+
         # 更新字段
         if title is not None:
             document.title = title
@@ -915,23 +916,23 @@ class KnowledgeManager:
             document.source = source
         if metadata is not None:
             document.metadata = metadata
-        
+
         # 保存更新
         await self.doc_storage.update_document(document)
-        
+
         # 如果内容变更，重新分块
         if content is not None and self.config.auto_index:
             await self.chunk_storage.delete_chunks(document_id)
             chunks = self.chunker.chunk_document(document_id, content)
             await self.chunk_storage.create_chunks(chunks)
-        
+
         logger.info("文档已更新", document_id=document_id)
-    
+
     async def delete_document(self, document_id: str) -> None:
         """删除文档"""
         await self.doc_storage.delete_document(document_id)
         logger.info("文档已删除", document_id=document_id)
-    
+
     async def list_documents(
         self,
         limit: int = 10,
@@ -939,7 +940,7 @@ class KnowledgeManager:
     ) -> list[Document]:
         """列出文档"""
         return await self.doc_storage.list_documents(limit, offset)
-    
+
     async def search(
         self,
         query: str,
@@ -947,12 +948,12 @@ class KnowledgeManager:
         search_chunks: bool = True
     ) -> list[SearchResult]:
         """搜索知识库
-        
+
         Args:
             query: 搜索查询
             limit: 结果数量限制
             search_chunks: 是否搜索块（更精细）
-        
+
         Returns:
             搜索结果列表
         """
@@ -984,13 +985,13 @@ async def add_knowledge(
 ) -> str:
     """添加文档到知识库"""
     knowledge_manager = ctx.knowledge_manager
-    
+
     document_id = await knowledge_manager.add_document(
         title=title,
         content=content,
         source=source
     )
-    
+
     return f"文档已添加，ID: {document_id}"
 
 
@@ -1002,9 +1003,9 @@ async def search_knowledge(
 ) -> list[dict]:
     """搜索知识库"""
     knowledge_manager = ctx.knowledge_manager
-    
+
     results = await knowledge_manager.search(query, limit)
-    
+
     return [
         {
             "document_id": r.document_id,
@@ -1023,12 +1024,12 @@ async def get_knowledge(
 ) -> dict:
     """获取文档详情"""
     knowledge_manager = ctx.knowledge_manager
-    
+
     document = await knowledge_manager.get_document(document_id)
-    
+
     if document is None:
         raise ValueError(f"文档不存在: {document_id}")
-    
+
     return {
         "id": document.id,
         "title": document.title,
@@ -1048,15 +1049,15 @@ async def get_knowledge(
 async def add_documents_batch(self, documents: list[Document]) -> list[str]:
     """批量添加文档"""
     document_ids = []
-    
+
     for document in documents:
         doc_id = await self.doc_storage.create_document(document)
         document_ids.append(doc_id)
-        
+
         if self.config.auto_index:
             chunks = self.chunker.chunk_document(doc_id, document.content)
             await self.chunk_storage.create_chunks(chunks)
-    
+
     return document_ids
 ```
 

@@ -150,17 +150,17 @@ from typing import AsyncIterator, Any
 
 class Transport(ABC):
     """传输层抽象基类"""
-    
+
     @abstractmethod
     async def send(self, message: dict[str, Any]) -> None:
         """发送消息到客户端"""
         pass
-    
+
     @abstractmethod
     async def receive(self) -> AsyncIterator[dict[str, Any]]:
         """从客户端接收消息流"""
         pass
-    
+
     @abstractmethod
     async def close(self) -> None:
         """关闭传输连接"""
@@ -359,6 +359,7 @@ class ToolMetadata(BaseModel):
 **决策**: 使用 FastMCP 作为主框架
 
 **理由**:
+
 - 提供装饰器语法，简化工具定义
 - 自动 schema 生成
 - 内置类型验证
@@ -372,6 +373,7 @@ class ToolMetadata(BaseModel):
 **决策**: 使用 YAML 格式
 
 **理由**:
+
 - 人类可读性强
 - 支持注释
 - 层级结构清晰
@@ -385,6 +387,7 @@ class ToolMetadata(BaseModel):
 **决策**: 使用 SQLite + FTS5
 
 **理由**:
+
 - 零配置、零依赖
 - 内置全文搜索 (FTS5)
 - 成熟稳定
@@ -398,6 +401,7 @@ class ToolMetadata(BaseModel):
 **决策**: 全异步架构
 
 **理由**:
+
 - MCP 协议本质是异步的
 - 支持高并发连接
 - 现代 Python 最佳实践
@@ -411,6 +415,7 @@ class ToolMetadata(BaseModel):
 **决策**: FastAPI
 
 **理由**:
+
 - 类型安全
 - 自动 OpenAPI 文档
 - 高性能 (ASGI)
@@ -453,11 +458,11 @@ class Plugin(Protocol):
     """插件接口"""
     name: str
     version: str
-    
+
     async def initialize(self, ctx: Context) -> None:
         """初始化插件"""
         pass
-    
+
     async def shutdown(self) -> None:
         """关闭插件"""
         pass

@@ -142,10 +142,10 @@ from typing import Protocol, runtime_checkable
 @runtime_checkable
 class Transport(Protocol):
     """传输层协议"""
-    
+
     async def send(self, message: dict[str, Any]) -> None:
         ...
-    
+
     async def receive(self) -> AsyncIterator[dict[str, Any]]:
         ...
 ```
@@ -161,13 +161,13 @@ T = TypeVar('T')
 
 class Registry(Generic[T]):
     """通用注册表"""
-    
+
     def __init__(self) -> None:
         self._items: dict[str, T] = {}
-    
+
     def register(self, name: str, item: T) -> None:
         self._items[name] = item
-    
+
     def get(self, name: str) -> T | None:
         return self._items.get(name)
 ```
@@ -260,22 +260,22 @@ def complex_function(
     param3: bool = False
 ) -> dict[str, Any]:
     """执行复杂操作的函数
-    
+
     这里是详细描述，解释函数的用途、行为和注意事项。
     可以多行描述。
-    
+
     Args:
         param1: 第一个参数的描述
         param2: 第二个参数的描述
         param3: 第三个参数的描述，默认为 False
-    
+
     Returns:
         返回值的描述，包含键值说明
-    
+
     Raises:
         ValueError: 当 param2 < 0 时抛出
         FileNotFoundError: 当文件不存在时抛出
-    
+
     Examples:
         >>> result = complex_function("test", 42)
         >>> print(result)
@@ -289,19 +289,19 @@ def complex_function(
 ```python
 class ToolManager:
     """工具管理器
-    
+
     负责工具的注册、发现和调用。支持工具分组和
     动态启用/禁用。
-    
+
     Attributes:
         _tools: 已注册的工具字典
         _groups: 工具组配置
-    
+
     Examples:
         >>> manager = ToolManager()
         >>> manager.register_tool("read_file", read_file_func)
     """
-    
+
     def __init__(self) -> None:
         """初始化工具管理器"""
         self._tools: dict[str, ToolFunction] = {}
@@ -324,7 +324,7 @@ class ToolManager:
 
 典型用法:
     from lyxamour_mcp.tools import tool, ToolManager
-    
+
     @tool(group="filesystem")
     async def read_file(ctx: Context, path: str) -> str:
         ...
@@ -493,12 +493,12 @@ from pydantic import BaseModel, Field, field_validator
 
 class ToolConfig(BaseModel):
     """工具配置模型"""
-    
+
     name: str = Field(..., description="工具名称")
     group: str = Field(..., description="所属组")
     enabled: bool = Field(default=True, description="是否启用")
     timeout: int = Field(default=30, ge=1, le=300, description="超时时间(秒)")
-    
+
     @field_validator('name')
     @classmethod
     def validate_name(cls, v: str) -> str:
@@ -506,7 +506,7 @@ class ToolConfig(BaseModel):
         if not v.isidentifier():
             raise ValueError("工具名称必须是有效的标识符")
         return v
-    
+
     model_config = {
         "frozen": False,  # 是否不可变
         "extra": "forbid",  # 禁止额外字段
@@ -577,12 +577,12 @@ from lyxamour_mcp.config import Config
 
 class TestConfig:
     """配置系统测试"""
-    
+
     def test_load_default_config(self):
         """测试加载默认配置"""
         config = Config.load_default()
         assert config.log_level == "INFO"
-    
+
     @pytest.mark.asyncio
     async def test_async_operation(self):
         """测试异步操作"""

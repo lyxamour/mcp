@@ -32,7 +32,7 @@ from pathlib import Path
 
 class TransportConfig(BaseModel):
     """传输层配置"""
-    
+
     type: Literal["stdio", "sse", "http_stream"] = Field(
         default="stdio",
         description="传输协议类型"
@@ -47,7 +47,7 @@ class TransportConfig(BaseModel):
         le=65535,
         description="服务器端口（仅 sse/http_stream）"
     )
-    
+
     @field_validator('host')
     @classmethod
     def validate_host(cls, v: str) -> str:
@@ -59,7 +59,7 @@ class TransportConfig(BaseModel):
                 if not all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
                     raise ValueError(f"无效的 IP 地址: {v}")
         return v
-    
+
     model_config = {
         "extra": "forbid",
         "frozen": False,
@@ -68,7 +68,7 @@ class TransportConfig(BaseModel):
 
 class ToolConfig(BaseModel):
     """单个工具配置"""
-    
+
     name: str = Field(..., description="工具名称")
     enabled: bool = Field(default=True, description="是否启用")
     timeout: int = Field(
@@ -81,7 +81,7 @@ class ToolConfig(BaseModel):
         default_factory=dict,
         description="工具特定配置"
     )
-    
+
     @field_validator('name')
     @classmethod
     def validate_name(cls, v: str) -> str:
@@ -93,14 +93,14 @@ class ToolConfig(BaseModel):
 
 class ToolGroupConfig(BaseModel):
     """工具组配置"""
-    
+
     name: str = Field(..., description="组名称")
     enabled: bool = Field(default=True, description="是否启用整个组")
     tools: dict[str, bool | ToolConfig] = Field(
         default_factory=dict,
         description="组内工具配置"
     )
-    
+
     @field_validator('name')
     @classmethod
     def validate_name(cls, v: str) -> str:
@@ -108,25 +108,25 @@ class ToolGroupConfig(BaseModel):
         if not v.replace('_', '').isalnum():
             raise ValueError(f"组名称只能包含字母、数字和下划线: {v}")
         return v
-    
+
     def is_tool_enabled(self, tool_name: str) -> bool:
         """检查工具是否启用"""
         if not self.enabled:
             return False
-        
+
         tool_config = self.tools.get(tool_name)
         if tool_config is None:
             return True  # 默认启用
-        
+
         if isinstance(tool_config, bool):
             return tool_config
-        
+
         return tool_config.enabled
 
 
 class KnowledgeConfig(BaseModel):
     """知识库配置"""
-    
+
     enabled: bool = Field(default=True, description="是否启用知识库")
     db_path: str = Field(
         default="~/.lyxamour/mcp/knowledge.db",
@@ -156,7 +156,7 @@ class KnowledgeConfig(BaseModel):
         default=False,
         description="启用向量搜索（需要额外依赖）"
     )
-    
+
     @field_validator('db_path')
     @classmethod
     def expand_db_path(cls, v: str) -> str:
@@ -166,7 +166,7 @@ class KnowledgeConfig(BaseModel):
 
 class WebConfig(BaseModel):
     """Web 界面配置"""
-    
+
     enabled: bool = Field(default=True, description="是否启用 Web 界面")
     host: str = Field(default="127.0.0.1", description="Web 服务器地址")
     port: int = Field(
@@ -191,7 +191,7 @@ class WebConfig(BaseModel):
 
 class LogConfig(BaseModel):
     """日志配置"""
-    
+
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
         description="日志级别"
@@ -218,7 +218,7 @@ class LogConfig(BaseModel):
 
 class PluginConfig(BaseModel):
     """插件配置"""
-    
+
     enabled: bool = Field(default=True, description="是否启用插件系统")
     directories: list[str] = Field(
         default_factory=lambda: ["~/.lyxamour/mcp/plugins"],
@@ -240,7 +240,7 @@ class PluginConfig(BaseModel):
 
 class Config(BaseModel):
     """主配置模型"""
-    
+
     transport: TransportConfig = Field(
         default_factory=TransportConfig,
         description="传输层配置"
@@ -265,7 +265,7 @@ class Config(BaseModel):
         default_factory=PluginConfig,
         description="插件配置"
     )
-    
+
     # 其他全局配置
     max_concurrent_tasks: int = Field(
         default=10,
@@ -279,19 +279,19 @@ class Config(BaseModel):
         le=3600,
         description="任务默认超时（秒）"
     )
-    
+
     model_config = {
         "extra": "forbid",
         "frozen": False,
     }
-    
+
     def get_tool_group(self, group_name: str) -> ToolGroupConfig | None:
         """获取工具组配置"""
         for group in self.tool_groups:
             if group.name == group_name:
                 return group
         return None
-    
+
     def is_tool_enabled(self, group_name: str, tool_name: str) -> bool:
         """检查工具是否启用"""
         group = self.get_tool_group(group_name)
@@ -322,11 +322,11 @@ logger = logging.getLogger(__name__)
 
 class ConfigLoader:
     """配置加载器"""
-    
+
     # 配置文件路径
     GLOBAL_CONFIG_PATH = Path.home() / ".lyxamour" / "mcp" / "config.yaml"
     PROJECT_CONFIG_NAME = ".lyxamour/mcp/config.yaml"
-    
+
     @classmethod
     def load(
         cls,
@@ -334,24 +334,24 @@ class ConfigLoader:
         config_file: Path | None = None
     ) -> Config:
         """加载配置
-        
+
         Args:
             project_dir: 项目目录（搜索项目配置）
             config_file: 明确指定的配置文件
-        
+
         Returns:
             合并后的配置对象
         """
         # 1. 加载默认配置
         config_dict = get_default_config()
         logger.debug("已加载默认配置")
-        
+
         # 2. 加载全局配置
         if cls.GLOBAL_CONFIG_PATH.exists():
             global_config = cls._load_yaml(cls.GLOBAL_CONFIG_PATH)
             config_dict = merge_configs(config_dict, global_config)
             logger.info(f"已加载全局配置: {cls.GLOBAL_CONFIG_PATH}")
-        
+
         # 3. 加载项目配置
         if project_dir:
             project_config_path = project_dir / cls.PROJECT_CONFIG_NAME
@@ -359,26 +359,26 @@ class ConfigLoader:
                 project_config = cls._load_yaml(project_config_path)
                 config_dict = merge_configs(config_dict, project_config)
                 logger.info(f"已加载项目配置: {project_config_path}")
-        
+
         # 4. 加载明确指定的配置文件
         if config_file and config_file.exists():
             file_config = cls._load_yaml(config_file)
             config_dict = merge_configs(config_dict, file_config)
             logger.info(f"已加载配置文件: {config_file}")
-        
+
         # 5. 从环境变量加载
         env_config = cls._load_from_env()
         if env_config:
             config_dict = merge_configs(config_dict, env_config)
             logger.debug("已加载环境变量配置")
-        
+
         # 6. 验证并构建配置对象
         config = Config(**config_dict)
         validate_config(config)
-        
+
         logger.info("配置加载完成")
         return config
-    
+
     @staticmethod
     def _load_yaml(path: Path) -> dict[str, Any]:
         """加载 YAML 文件"""
@@ -392,11 +392,11 @@ class ConfigLoader:
         except Exception as e:
             logger.error(f"读取配置文件失败: {path}: {e}")
             raise ConfigError(f"无法读取配置文件: {path}") from e
-    
+
     @staticmethod
     def _load_from_env() -> dict[str, Any]:
         """从环境变量加载配置
-        
+
         环境变量格式: LYXAMOUR_MCP_<PATH>
         路径使用双下划线分隔，例如:
             LYXAMOUR_MCP_TRANSPORT__TYPE=stdio
@@ -404,24 +404,24 @@ class ConfigLoader:
         """
         config: dict[str, Any] = {}
         prefix = "LYXAMOUR_MCP_"
-        
+
         for key, value in os.environ.items():
             if not key.startswith(prefix):
                 continue
-            
+
             # 移除前缀并分割路径
             path = key[len(prefix):].lower().split("__")
-            
+
             # 构建嵌套字典
             current = config
             for part in path[:-1]:
                 if part not in current:
                     current[part] = {}
                 current = current[part]
-            
+
             # 设置值（尝试类型转换）
             current[path[-1]] = _parse_env_value(value)
-        
+
         return config
 
 
@@ -432,7 +432,7 @@ def _parse_env_value(value: str) -> Any:
         return True
     if value.lower() in ("false", "no", "0"):
         return False
-    
+
     # 数字
     try:
         if '.' in value:
@@ -440,7 +440,7 @@ def _parse_env_value(value: str) -> Any:
         return int(value)
     except ValueError:
         pass
-    
+
     # 字符串
     return value
 
@@ -460,21 +460,21 @@ from copy import deepcopy
 
 def merge_configs(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """深度合并配置字典
-    
+
     Args:
         base: 基础配置
         override: 覆盖配置
-    
+
     Returns:
         合并后的配置
-    
+
     规则:
         - 字典递归合并
         - 列表追加（工具组列表）
         - 其他类型直接覆盖
     """
     result = deepcopy(base)
-    
+
     for key, value in override.items():
         if key not in result:
             result[key] = deepcopy(value)
@@ -491,7 +491,7 @@ def merge_configs(base: dict[str, Any], override: dict[str, Any]) -> dict[str, A
         else:
             # 直接覆盖
             result[key] = deepcopy(value)
-    
+
     return result
 
 
@@ -500,12 +500,12 @@ def _merge_tool_groups(
     override_groups: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     """合并工具组列表
-    
+
     按名称合并，同名组递归合并配置
     """
     result = deepcopy(base_groups)
     base_names = {group["name"]: i for i, group in enumerate(result)}
-    
+
     for override_group in override_groups:
         name = override_group["name"]
         if name in base_names:
@@ -515,7 +515,7 @@ def _merge_tool_groups(
         else:
             # 新组，直接添加
             result.append(deepcopy(override_group))
-    
+
     return result
 ```
 
@@ -533,10 +533,10 @@ logger = logging.getLogger(__name__)
 
 def validate_config(config: Config) -> None:
     """验证配置的有效性
-    
+
     Args:
         config: 配置对象
-    
+
     Raises:
         ConfigError: 配置无效
     """
@@ -550,7 +550,7 @@ def validate_config(config: Config) -> None:
                 db_dir.mkdir(parents=True, exist_ok=True)
             except Exception as e:
                 raise ConfigError(f"无法创建知识库目录: {db_dir}: {e}") from e
-    
+
     # 2. 验证 Web 配置
     if config.web.enabled:
         if config.web.port == config.transport.port:
@@ -558,20 +558,20 @@ def validate_config(config: Config) -> None:
                 raise ConfigError(
                     f"Web 端口与传输层端口冲突: {config.web.port}"
                 )
-    
+
     # 3. 验证工具组
     group_names = [group.name for group in config.tool_groups]
     if len(group_names) != len(set(group_names)):
         duplicates = [name for name in group_names if group_names.count(name) > 1]
         raise ConfigError(f"工具组名称重复: {duplicates}")
-    
+
     # 4. 验证插件目录
     if config.plugin.enabled:
         for plugin_dir in config.plugin.directories:
             path = Path(plugin_dir).expanduser()
             if not path.exists():
                 logger.warning(f"插件目录不存在: {path}")
-    
+
     # 5. 验证日志配置
     if config.log.file:
         log_path = Path(config.log.file).expanduser()
@@ -582,7 +582,7 @@ def validate_config(config: Config) -> None:
                 log_dir.mkdir(parents=True, exist_ok=True)
             except Exception as e:
                 raise ConfigError(f"无法创建日志目录: {log_dir}: {e}") from e
-    
+
     logger.info("配置验证通过")
 ```
 
@@ -666,7 +666,7 @@ def get_default_config() -> dict[str, Any]:
 
 # 传输层配置
 transport:
-  type: stdio  # stdio | sse | http_stream
+  type: stdio # stdio | sse | http_stream
   host: 127.0.0.1
   port: 8000
 
@@ -679,7 +679,7 @@ tool_groups:
       write_file: true
       list_directory: true
       search_files: true
-  
+
   - name: text
     enabled: true
     tools:
@@ -708,10 +708,10 @@ web:
 
 # 日志配置
 log:
-  level: INFO  # DEBUG | INFO | WARNING | ERROR | CRITICAL
-  format: console  # json | console | text
-  file: null  # 日志文件路径，null 则不写文件
-  max_file_size: 10485760  # 10MB
+  level: INFO # DEBUG | INFO | WARNING | ERROR | CRITICAL
+  format: console # json | console | text
+  file: null # 日志文件路径，null 则不写文件
+  max_file_size: 10485760 # 10MB
   backup_count: 5
 
 # 插件配置
@@ -720,7 +720,7 @@ plugin:
   directories:
     - ~/.lyxamour/mcp/plugins
   auto_load: true
-  whitelist: []  # 空列表表示允许所有
+  whitelist: [] # 空列表表示允许所有
   blacklist: []
 
 # 全局配置
@@ -769,7 +769,7 @@ logger = logging.getLogger(__name__)
 
 class ConfigWatcher:
     """配置文件监视器，支持热重载"""
-    
+
     def __init__(
         self,
         config_paths: list[Path],
@@ -784,13 +784,13 @@ class ConfigWatcher:
         self.on_change = on_change
         self._running = False
         self._task: asyncio.Task | None = None
-    
+
     async def start(self) -> None:
         """开始监视"""
         self._running = True
         self._task = asyncio.create_task(self._watch_loop())
         logger.info("配置监视器已启动")
-    
+
     async def stop(self) -> None:
         """停止监视"""
         self._running = False
@@ -801,21 +801,21 @@ class ConfigWatcher:
             except asyncio.CancelledError:
                 pass
         logger.info("配置监视器已停止")
-    
+
     async def _watch_loop(self) -> None:
         """监视循环"""
         last_mtimes = {
             path: path.stat().st_mtime if path.exists() else 0
             for path in self.config_paths
         }
-        
+
         while self._running:
             await asyncio.sleep(1)  # 每秒检查一次
-            
+
             for path in self.config_paths:
                 if not path.exists():
                     continue
-                
+
                 mtime = path.stat().st_mtime
                 if mtime > last_mtimes[path]:
                     logger.info(f"检测到配置变更: {path}")
@@ -847,7 +847,7 @@ def show_config(
 ):
     """显示当前配置"""
     from lyxamour_mcp.config.loader import ConfigLoader
-    
+
     config = ConfigLoader.load(project_dir=project_dir)
     print(config.model_dump_json(indent=2))
 
@@ -859,7 +859,7 @@ def validate_config_cmd(
     """验证配置文件"""
     from lyxamour_mcp.config.loader import ConfigLoader
     from lyxamour_mcp.config.validator import validate_config
-    
+
     try:
         config = ConfigLoader.load(config_file=config_file)
         validate_config(config)
@@ -887,25 +887,25 @@ def init_config(
     """初始化配置文件"""
     from lyxamour_mcp.config.defaults import get_default_config
     import yaml
-    
+
     if global_config:
         config_path = Path.home() / ".lyxamour" / "mcp" / "config.yaml"
     else:
         config_path = project_dir / ".lyxamour" / "mcp" / "config.yaml"
-    
+
     if config_path.exists():
         overwrite = typer.confirm(f"配置文件已存在: {config_path}。是否覆盖?")
         if not overwrite:
             raise typer.Abort()
-    
+
     # 创建目录
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # 写入默认配置
     default_config = get_default_config()
     with config_path.open('w', encoding='utf-8') as f:
         yaml.dump(default_config, f, default_flow_style=False, allow_unicode=True)
-    
+
     print(f"✓ 配置文件已创建: {config_path}")
 ```
 

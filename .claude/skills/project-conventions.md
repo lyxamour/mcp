@@ -148,7 +148,7 @@ class Context:
 ```yaml
 # config.yaml 标准结构
 transport:
-  type: stdio  # stdio | sse | http_stream
+  type: stdio # stdio | sse | http_stream
   host: 127.0.0.1
   port: 8000
 
@@ -159,7 +159,7 @@ tool_groups:
       read_file: true
       write_file: true
       list_directory: true
-  
+
   - name: text
     enabled: true
     tools:
@@ -176,7 +176,7 @@ web:
   host: 127.0.0.1
   port: 8080
 
-log_level: INFO  # DEBUG | INFO | WARNING | ERROR | CRITICAL
+log_level: INFO # DEBUG | INFO | WARNING | ERROR | CRITICAL
 ```
 
 ### 环境变量
@@ -214,17 +214,17 @@ async def read_file(
     encoding: Annotated[str, "编码格式"] = "utf-8"
 ) -> str:
     """读取文件内容
-    
+
     从指定路径读取文件，返回文件内容。
-    
+
     Args:
         ctx: 上下文对象
         path: 文件路径（相对或绝对）
         encoding: 文件编码，默认 utf-8
-    
+
     Returns:
         文件内容字符串
-    
+
     Raises:
         FileNotFoundError: 文件不存在
         PermissionError: 无权限读取
@@ -254,13 +254,13 @@ max_size: int = 1024 * 1024
 async def my_tool(ctx: Context, ...) -> ...:
     # 日志
     ctx.logger.info("执行操作", param=value)
-    
+
     # 进度报告
     await ctx.report_progress(0.5, "处理中...")
-    
+
     # 访问配置
     config = ctx.config
-    
+
     # 调用其他工具
     result = await ctx.call_tool("other_tool", param=value)
 ```
@@ -356,6 +356,7 @@ logger.info(f"工具 {tool_name} 调用成功，路径: {file_path}")
 ```
 
 **类型**:
+
 - `feat`: 新功能
 - `fix`: 修复 bug
 - `docs`: 文档变更
@@ -432,9 +433,9 @@ async def test_with_mock():
     """使用 mock 的测试"""
     mock_transport = AsyncMock()
     mock_transport.send.return_value = None
-    
+
     await function_under_test(mock_transport)
-    
+
     mock_transport.send.assert_called_once()
 ```
 
@@ -477,9 +478,9 @@ from pydantic import BaseModel, Field, field_validator
 
 class FileRequest(BaseModel):
     """文件请求"""
-    
+
     path: str = Field(..., description="文件路径")
-    
+
     @field_validator('path')
     @classmethod
     def validate_path(cls, v: str) -> str:
