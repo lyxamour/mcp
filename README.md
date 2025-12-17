@@ -35,29 +35,38 @@ uvx --from git+https://github.com/lyxamour/mcp lyxamour-mcp --help
 ### 安装
 
 ```bash
-# 使用 uv 安装
-uv pip install lyxamour-mcp
-
-# 或从源码安装
+# 方法 1: 使用 Makefile（推荐）
 git clone https://github.com/lyxamour/mcp.git
 cd mcp
-uv sync
+make install        # 安装到系统
+# 或
+make install-dev    # 开发模式安装（可编辑）
+
+# 方法 2: 使用 uv 直接安装
+uv pip install lyxamour-mcp
+
+# 方法 3: 从源码安装
+git clone https://github.com/lyxamour/mcp.git
+cd mcp
+uv sync --all-extras
 ```
 
 ### 运行
 
 ```bash
-# 使用 stdio 传输（默认）
-lyxamour-mcp start
+# 已安装后运行
+lyxamour-mcp start                           # stdio 传输（默认）
+lyxamour-mcp start --transport sse           # SSE 传输
+lyxamour-mcp start --transport http_stream   # HTTP Stream 传输
+lyxamour-mcp version                         # 查看版本
 
-# 使用 SSE 传输
-lyxamour-mcp start --transport sse
+# 未安装直接运行（使用 uv run）
+uv run lyxamour-mcp start
+uv run python main.py start
 
-# 使用 HTTP Stream 传输
-lyxamour-mcp start --transport http_stream
-
-# 查看版本
-lyxamour-mcp version
+# 使用 Makefile
+make run            # 使用 uv run 运行
+make run-main       # 通过 main.py 运行
 ```
 
 ## 配置
@@ -119,21 +128,33 @@ log:
 git clone https://github.com/lyxamour/mcp.git
 cd mcp
 
+# 查看所有可用命令
+make
+
 # 安装开发依赖
+make dev
+# 或
 uv sync --all-extras
+```
 
-# 运行测试
-pytest
+### 开发常用命令
 
-# 代码格式化
-black .
-isort .
+```bash
+# 使用 Makefile（推荐）
+make dev            # 同步开发依赖
+make run            # 运行工具
+make test           # 运行测试
+make format         # 代码格式化
+make lint           # 代码检查
+make build          # 构建发布包
+make clean          # 清理构建产物
 
-# 类型检查
-mypy src
-
-# 代码检查
-ruff check .
+# 或直接使用 uv
+uv run pytest                  # 运行测试
+uv run black src tests         # 格式化
+uv run isort src tests         # 导入排序
+uv run mypy src                # 类型检查
+uv run ruff check src tests    # 代码检查
 ```
 
 ### 项目结构
